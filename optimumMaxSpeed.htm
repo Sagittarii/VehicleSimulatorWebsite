@@ -1,0 +1,268 @@
+<!doctype html>
+<html>
+
+<head>
+	<title>Line Chart</title>
+	<script src="https://www.chartjs.org/dist/2.8.0/Chart.min.js"></script>
+	<script src="https://www.chartjs.org/samples/latest/utils.js"></script>
+	<style>
+	canvas{
+		-moz-user-select: none;
+		-webkit-user-select: none;
+		-ms-user-select: none;
+	}
+	</style>
+</head>
+
+<body>
+	<script>
+		var speeds = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200];
+		var config_speed = {
+			type: 'line',
+			data: {
+				labels: speeds, 
+				datasets: [
+				{
+					label: 'Vitesse sans recharge',
+					backgroundColor: window.chartColors.blue,
+					borderColor: window.chartColors.blue,
+					borderDash: [5, 5],
+					data: speeds,
+					fill: false,
+				},
+				{
+					label: 'Vitesse effective #1',
+					backgroundColor: window.chartColors.red,
+					borderColor: window.chartColors.red,
+					data: [],
+					fill: false,
+				}
+				]
+			},
+			options: {
+				responsive: true,
+				title: {
+					display: true,
+					text: 'Vitesse effective avec prise en compte du temps de charge'
+				},
+				tooltips: {
+					mode: 'index',
+					intersect: false,
+				},
+				hover: {
+					mode: 'nearest',
+					intersect: true
+				},
+				scales: {
+					xAxes: [{
+						display: true,
+						scaleLabel: {
+							display: true,
+							labelString: 'Vitesse moyenne de conduite [km/h]'
+						}
+					}],
+					yAxes: [{
+						display: true,
+						scaleLabel: {
+							display: true,
+							labelString: 'Vitesse moyenne effective avec arrêt recharge [km/h]'
+						}
+					}]
+				}
+			}
+		};
+
+		var config_conso = {
+			type: 'line',
+			data: {
+				labels: speeds, 
+				datasets: [
+				{
+					label: 'Consommation #1',
+					backgroundColor: window.chartColors.red,
+					borderColor: window.chartColors.red,
+					data: [],
+					fill: false,
+				}
+				]
+			},
+			options: {
+				responsive: true,
+				title: {
+					display: true,
+					text: 'Consommation fonction de la Vitesse'
+				},
+				tooltips: {
+					mode: 'index',
+					intersect: false,
+				},
+				hover: {
+					mode: 'nearest',
+					intersect: true
+				},
+				scales: {
+					xAxes: [{
+						display: true,
+						scaleLabel: {
+							display: true,
+							labelString: 'Vitesse moyenne de conduite [km/h]'
+						}
+					}],
+					yAxes: [{
+						display: true,
+						scaleLabel: {
+							display: true,
+							labelString: 'Consommation [Wh/km]'
+						}
+					}]
+				}
+			}
+		};
+
+		function addData() {
+			var colorNames = Object.keys(window.chartColors);
+			var colorName = colorNames[config_speed.data.datasets.length % colorNames.length];
+			var newColor = window.chartColors[colorName];
+			var newDataset_speed = {
+				label: 'Vitesse effective #' + (config_speed.data.datasets.length),
+				backgroundColor: newColor,
+				borderColor: newColor,
+				data: [],
+				fill: false
+			};
+			var newDataset_conso = {
+				label: 'Consommation #' + (config_speed.data.datasets.length),
+				backgroundColor: newColor,
+				borderColor: newColor,
+				data: [],
+				fill: false
+			};
+
+			config_speed.data.datasets.push(newDataset_speed);
+			config_conso.data.datasets.push(newDataset_conso);
+			updateData();
+		}
+
+		function updateData() {
+
+			Pcharge_kW = simu.Pavg_kW.value;
+			rho = simu.rho.value;
+			SCx = vehicle.SCx.value;
+			k = vehicle.k.value;
+			m = vehicle.m.value;
+
+			var avgSpeed = [];
+			var conso = [];
+			for (var i = 0; i < speeds.length; ++i) 
+			{
+				V_mps = speeds[i]/3.6
+				Fs_N = 0.5*V_mps*V_mps*SCx*rho;
+				Ff_N = 9.81*k*m;
+				F_N = Fs_N + Ff_N;
+				P_W = F_N * V_mps;
+				C_Whpkm = 1000*P_W/V_mps/3600;
+				Tcharge_h = P_W/(Pcharge_kW*1000); // For 1h at this speed
+				Ttot_h = 1 + Tcharge_h;
+				Veff_mps = V_mps/Ttot_h;
+				Veff_kmph = Veff_mps*3.6;
+				avgSpeed.push(Veff_kmph);
+				conso.push(C_Whpkm);
+			}
+
+    			config_speed.data.datasets[config_speed.data.datasets.length - 1].data = avgSpeed;
+    			config_conso.data.datasets[config_conso.data.datasets.length - 1].data = conso;
+			
+			
+			window.myLine_speed.update();
+			window.myLine_conso.update();
+		}
+
+		window.onload = function() {
+			var ctx_speed = document.getElementById('canvas_speed').getContext('2d');
+			window.myLine_speed = new Chart(ctx_speed, config_speed);
+			var ctx_conso = document.getElementById('canvas_conso').getContext('2d');
+			window.myLine_conso = new Chart(ctx_conso, config_conso);
+			updateData();
+		};
+
+		function setParam(SCx, k, m)
+		{
+			vehicle.SCx.value = SCx;
+			vehicle.k.value = k;
+			vehicle.m.value = m;
+
+			updateData();
+		}
+
+		function setRho(rho)
+		{
+			simu.rho.value = rho;
+
+			updateData();
+		}
+
+		function setPCharge(PCharge)
+		{
+			simu.Pavg_kW.value = PCharge;
+
+			updateData();
+		}
+
+
+	</script>
+
+
+	<FORM NAME="simu" ACTION="" METHOD="GET">
+		<TABLE>
+			<TR><TD colspan="2">
+					<INPUT TYPE="button" VALUE="T2 3kW"  onClick="setPCharge(3)">
+					<INPUT TYPE="button" VALUE="T2 6.6kW"  onClick="setPCharge(6.6)">
+					<INPUT TYPE="button" VALUE="T2 11kW"  onClick="setPCharge(11)">
+					<INPUT TYPE="button" VALUE="T2 22kW"  onClick="setPCharge(22)">
+					<INPUT TYPE="button" VALUE="DC 45kW"  onClick="setPCharge(45)">
+					<INPUT TYPE="button" VALUE="DC 70kW"  onClick="setPCharge(70)">
+					<INPUT TYPE="button" VALUE="DC 120kW"  onClick="setPCharge(120)">
+			</TD></TR>
+			<TR><TD>Puissance de charge moyenne [kW]: </TD><TD><INPUT TYPE="text" NAME="Pavg_kW" VALUE="45" onchange="updateData()"></TD></TR>
+			<TR><TD colspan="2">
+		<INPUT TYPE="button" NAME="" Value="-10°C" onClick="setRho(1.341)">
+		<INPUT TYPE="button" NAME="" Value="0°C" onClick="setRho(1.292)">
+		<INPUT TYPE="button" NAME="" Value="+10°C" onClick="setRho(1.247)">
+		<INPUT TYPE="button" NAME="" Value="+20°C" onClick="setRho(1.204)">
+		<INPUT TYPE="button" NAME="" Value="+30°C" onClick="setRho(1.164)">
+			</TD></TR>
+			<TR><TD>Densité air [kg/m³]: </TD><TD><INPUT TYPE="text" NAME="rho" VALUE="1.204" onchange="updateData()"></TD></TR>
+		<TABLE>
+		
+	</FORM><P>
+
+	<FORM NAME="vehicle" ACTION="" METHOD="GET">
+		<INPUT TYPE="button" NAME="" Value="Zoe" onClick="setParam(0.75, 0.015, 1480)">
+		<INPUT TYPE="button" NAME="" Value="Ioniq" onClick="setParam(0.53, 0.015, 1495)">
+		<INPUT TYPE="button" NAME="" Value="Kona" onClick="setParam(0.68, 0.015, 1600)">
+		<INPUT TYPE="button" NAME="" Value="Tesla Model 3" onClick="setParam(0.50, 0.015, 1600)">
+		<INPUT TYPE="button" NAME="" Value="Leaf" onClick="setParam(0.64, 0.015, 1490)">
+		<INPUT TYPE="button" NAME="" Value="e208" onClick="setParam(0.63, 0.015, 1455)">
+
+		<TABLE>
+			<TR><TD>Coeff frottement [-] : </TD><TD><INPUT TYPE="text" NAME="k" VALUE="0.015" onchange="updateData()"></TD></TR>
+			<TR><TD>Coeff trainée "SCx" [m²]: </TD><TD><INPUT TYPE="text" NAME="SCx" VALUE="0.53" onchange="updateData()"></TD></TR>
+			<TR><TD>Poids véhicule [kg]: </TD><TD><INPUT TYPE="text" NAME="m" VALUE="1600" onchange="updateData()"></TD></TR>
+		</TABLE>
+	</FORM><P>
+
+	<INPUT TYPE="button" NAME="updateBtn" Value="Ajouter une courbe" onClick="addData()"><P>
+	<br>
+	<br>
+	<div style="width:100%;">
+		<canvas id="canvas_speed"></canvas>
+	</div>
+	<div style="width:100%;">
+		<canvas id="canvas_conso"></canvas>
+	</div>
+	<br>
+	<br>
+</body>
+
+</html>
+
