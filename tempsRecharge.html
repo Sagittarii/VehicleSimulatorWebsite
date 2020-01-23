@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+
+<head>
+	<title>Line Chart</title>
+	<script src="https://www.chartjs.org/dist/2.8.0/Chart.min.js"></script>
+	<script src="https://www.chartjs.org/samples/latest/utils.js"></script>
+	<style>
+	canvas{
+		-moz-user-select: none;
+		-webkit-user-select: none;
+		-ms-user-select: none;
+	}
+	</style>
+</head>
+
+<body>
+	<script>
+		var distances = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300];
+		var config_duration = {
+			type: 'line',
+			data: {
+				labels: distances, 
+				datasets: [
+				{
+					label: 'Durée rechargement #1',
+					backgroundColor: window.chartColors.red,
+					borderColor: window.chartColors.red,
+					data: [],
+					fill: false,
+				}
+				]
+			},
+			options: {
+				responsive: true,
+				title: {
+					display: true,
+					text: 'Durée de charge fonction de la distance parcourue'
+				},
+				tooltips: {
+					mode: 'index',
+					intersect: false,
+				},
+				hover: {
+					mode: 'nearest',
+					intersect: true
+				},
+				scales: {
+					xAxes: [{
+						display: true,
+						scaleLabel: {
+							display: true,
+							labelString: 'Distance parcourue [km]'
+						}
+					}],
+					yAxes: [{
+						display: true,
+						scaleLabel: {
+							display: true,
+							labelString: 'Durée de la recharge [h]'
+						}
+					}]
+				}
+			}
+		};
+
+
+		function addData() {
+			var colorNames = Object.keys(window.chartColors);
+			var colorName = colorNames[config_duration.data.datasets.length % colorNames.length];
+			var newColor = window.chartColors[colorName];
+			var newDataset_duration = {
+				label: 'Durée rechargement #' + (config_duration.data.datasets.length),
+				backgroundColor: newColor,
+				borderColor: newColor,
+				data: [],
+				fill: false
+			};
+			
+			config_duration.data.datasets.push(newDataset_duration);
+			updateData();
+		}
+
+		function updateData() {
+
+			Pcharge_kW = simu.Pcharge_kW.value;
+			Conso_Whperkm = simu.Conso_Whperkm.value;
+
+			var duration = [];
+			for (var i = 0; i < distances.length; ++i) 
+			{
+				Tcharge_h = Conso_Whperkm/(Pcharge_kW*1000)*distances[i];
+				duration.push(Tcharge_h);
+			}
+
+    			config_duration.data.datasets[config_duration.data.datasets.length - 1].data = duration;
+			
+			
+			window.myLine_duration.update();
+		}
+
+		window.onload = function() {
+			var ctx_duration = document.getElementById('canvas_duration').getContext('2d');
+			window.myLine_duration = new Chart(ctx_duration, config_duration);
+			updateData();
+		};
+
+	</script>
+
+
+	<FORM NAME="simu" ACTION="" METHOD="GET">
+		<TABLE>
+			<TR><TD>Puissance de charge moyenne [kW]: </TD><TD><INPUT TYPE="text" NAME="Pcharge_kW" VALUE="1.8" onchange="updateData()"></TD></TR>
+			<TR><TD>Consommation moyenne [Wh/km]: </TD><TD><INPUT TYPE="text" NAME="Conso_Whperkm" VALUE="200" onchange="updateData()"></TD></TR>
+		<TABLE>
+	</FORM><P>
+
+	<INPUT TYPE="button" NAME="updateBtn" Value="Ajouter une courbe" onClick="addData()"><P>
+	<br>
+	<br>
+	<div style="width:100%;">
+		<canvas id="canvas_duration"></canvas>
+	</div>
+	<br>
+	<br>
+</body>
+
+</html>
+
